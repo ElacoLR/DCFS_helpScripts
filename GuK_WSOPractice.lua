@@ -1,4 +1,4 @@
-local lcPlayerGroupName = {'player1', 'player2', 'player3'} -- 듣기평가 구역 플레이어 기체의 '그룹' 이름, 원할 시 더 추가해도 ㄱㅊ, 이름 마음대로 수정 ㅇㅋ
+local lcPlayerGroupName = {'player1'} -- 듣기평가 구역 플레이어 기체의 '그룹' 이름, 원할 시 더 추가해도 ㄱㅊ, 이름 마음대로 수정 ㅇㅋ
 local wsoPlayerGroupName = {'player4', 'player5', 'player6'} -- 레이더 연습 구역 플레이어 기체의 '그룹' 이름, 원할 시 더 추가해도 ㄱㅊ, 이름 마음대로 수정 ㅇㅋ
 
 local lcZone = '듣기평가 트리거 구역 이름'
@@ -38,13 +38,8 @@ function clearZone(zoneName)
     local u = mist.getUnitsInZones(mist.makeUnitTable({'[red]'}), {zoneName})
 
     for i = 1, #u do
-        u:destroy()
+        u[i]:destroy()
     end
-end
-
-for _, gN in pairs(lcPlayerGroupName) do
-    local gID = Group.getByName(gN):getID()
-    missionCommands.addCommandForGroup(gID, '듣기 평가 시작', nil, startLC, gID)
 end
 
 --[[
@@ -70,7 +65,7 @@ function startLC(gID)
 
         local uO = Group.getByName(uT):getUnits()[1]
 
-        if answerSheet[uO:getTypeName()] == 1 or answerSheet[uO;getTypeName()] == 2 then
+        if answerSheet[uO:getTypeName()] == 1 or answerSheet[uO:getTypeName()] == 2 then
             i = i - 1
         else
             answerSheet[uO:getTypeName()] = 1
@@ -87,10 +82,10 @@ function startLC(gID)
 
     local function checkAnswer(answer)
         if answerSheet[answer] == 2 then
-            missionCommands.removeItemForGroup(gID, nil)
             clearZone(lcZone)
             trigger.action.outTextForGroup(gID, "< 듣기 평가 >\n\n정답입니다. 다시 도전하시려면 라디오 메뉴에서 '듣기 평가 시작' 을 눌러주세요.", 5)
-            missionCommands.addCommandForGroup(gID, '듣기 평가 시작', nil, startLC, gID)
+            missionCommands.removeItemForGroup(gID, nil)
+            mist.scheduleFunction(missionCommands.addCommandForGroup, {gID, '듣기 평가 시작', nil, startLC, gID}, timer.getTime() + 5)
         else
             trigger.action.outTextForGroup(gID, "< 듣기 평가 >\n\n오답입니다.", 5)
         end
@@ -98,5 +93,13 @@ function startLC(gID)
 
     for _, k in ipairs(keys) do
         missionCommands.addCommandForGroup(gID, k, nil, checkAnswer, k)
+    end
+end
+
+
+for _, gN in pairs(lcPlayerGroupName) do
+    if Group.getByName(gN) then
+        local gID = Group.getByName(gN):getID()
+        missionCommands.addCommandForGroup(gID, '듣기 평가 시작', nil, startLC, gID)
     end
 end

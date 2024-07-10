@@ -34,6 +34,16 @@ function shuffleTable(tbl)
     end
 end
 
+function tableSize(tbl)
+    local count = 0
+
+    for _ in pairs(tbl) do
+        count = count + 1
+    end
+
+    return count
+end
+
 function clearZone(zoneName)
     local u = mist.getUnitsInZones(mist.makeUnitTable({'[red]'}), {zoneName})
 
@@ -49,25 +59,40 @@ for _, gN in pairs(wsoPlayerGroupName) do
 end
 ]]
 
-function startLC(gID)
+function startLC(gN, gID)
     missionCommands.removeItemForGroup(gID, nil)
 
     local gO = spawnEnemyAircraft(lcZone)
+
     local eGN = gO["name"]
+
     local spawnedUnit = Group.getByName(eGN):getUnits()[1]
+
+    -- AI 유닛 플레이어 목표물 강제 지정
+
+    local gC = Group.getByName(eGN):getController()
+
+    local aG = {
+        id = 'AttackGroup',
+        params = {
+            groupId = gID,
+        }
+    }
+
+    mist.scheduleFunction(Controller.pushTask, {gC, aG}, timer.getTime() + 2)
+
+    -- 목표물 강제 지정 끝
 
     local answerSheet = {}
 
     answerSheet[spawnedUnit:getTypeName()] = 2
 
-    for i = 1, 4 do
+    while tableSize(answerSheet) ~= 5 do
         local uT = lcTemplates[math.random(1, #lcTemplates)]
 
         local uO = Group.getByName(uT):getUnits()[1]
 
-        if answerSheet[uO:getTypeName()] == 1 or answerSheet[uO:getTypeName()] == 2 then
-            i = i - 1
-        else
+        if answerSheet[uO:getTypeName()] ~= 1 and answerSheet[uO:getTypeName()] ~= 2 then
             answerSheet[uO:getTypeName()] = 1
         end
     end
@@ -85,7 +110,7 @@ function startLC(gID)
             clearZone(lcZone)
             trigger.action.outTextForGroup(gID, "< 듣기 평가 >\n\n정답입니다. 다시 도전하시려면 라디오 메뉴에서 '듣기 평가 시작' 을 눌러주세요.", 5)
             missionCommands.removeItemForGroup(gID, nil)
-            mist.scheduleFunction(missionCommands.addCommandForGroup, {gID, '듣기 평가 시작', nil, startLC, gID}, timer.getTime() + 5)
+            mist.scheduleFunction(missionCommands.addCommandForGroup, {gID, '듣기 평가 시작', nil, startLC, gN, gID}, timer.getTime() + 5)
         else
             trigger.action.outTextForGroup(gID, "< 듣기 평가 >\n\n오답입니다.", 5)
         end
@@ -96,10 +121,34 @@ function startLC(gID)
     end
 end
 
-
 for _, gN in pairs(lcPlayerGroupName) do
     if Group.getByName(gN) then
         local gID = Group.getByName(gN):getID()
-        missionCommands.addCommandForGroup(gID, '듣기 평가 시작', nil, startLC, gID)
+        missionCommands.addCommandForGroup(gID, '듣기 평가 시작', nil, startLC, gN, gID)
+    end
+end
+
+-- 플레이어 유닛 무적 설정 --
+
+local sI = {
+    id = 'SetImmortal',
+    params = {
+        value = true
+    }
+}
+
+for _, gN in pairs(lcPlayerGroupName) do
+    if Group.getByName(gN) then
+        local gC = Group.getController(Group.getByName(gN))
+
+        gC:setCommand(sI)
+    end
+end
+
+for _, gN in pairs(wsoPlayerGroupName) do
+    if Group.getByName(gN) then
+        local gC = Group.getController(Group.getByName(gN))
+
+        gC:setCommand(sI)
     end
 end

@@ -1,20 +1,20 @@
 local lcPlayerGroupName = {'player1', 'player2', 'player3'} -- 듣기평가 구역 플레이어 기체의 '그룹' 이름, 원할 시 더 추가해도 ㄱㅊ, 이름 마음대로 수정 ㅇㅋ
 local wsoPlayerGroupName = {'player4', 'player5', 'player6'} -- 레이더 연습 구역 플레이어 기체의 '그룹' 이름, 원할 시 더 추가해도 ㄱㅊ, 이름 마음대로 수정 ㅇㅋ
 
-local lcZone = '듣기평가 트리거 구역 이름'
+local lcZone = '듣기평가 트리거 구역 이름' -- 원하는 구역에 트리거 존 배치하고 이름 맞춰주기, 크기 상관없음
 local lcTemplates = {'Su-27', 'F-16', 'F-1', 'F-4', 'F-5', 'Mig-21', 'Mig-23', 'F-15', 'F-18', 'Mig-29'} -- 듣기평가 구역에 나올 기체 '그룹' 이름, 이름 마음대로 수정 ㅇㅋ
 --                                                                                                          미션 에디터에 생성 후 "Late Activation" 체크할 것
 
-local wsoZone = '레이더 연습 구역 이름'
+local wsoZone = '레이더 연습 구역 이름' -- 원하는 구역에 트리거 존 배치하고 이름 맞춰주기, 크기 상관없음
 local wsoTemplates = {'L-39', 'Su-25', 'Su-27w', 'C-130', 'F-15C', 'F-16w'} -- 레이더 연습 구역에 나올 기체 '그룹' 이름, 이름 마음대로 수정 ㅇㅋ
 --                                                                           미션 에디터에 생성 후 "Late Activation" 체크할 것
 
 local weaponTarget = {} -- 건들면 좆됌..
 
--- 유닛 생성 시 행동 양식
+-- 적 유닛 템플릿 생성 시 행동 양식
 -- 1. 맵 어디다 놓든 상관이 없음.
--- 2. 그러나 웨이포인트 1개를 구역 중앙이든 어디든 구역 내 랜덤한 위치에서 스폰한 후 이동할 포인트를 하나 찍어줘야함.
--- 3. 모르겠으면 뜨는별 멘션
+-- 2. 그룹 이름이랑 유닛 이름 똑같이 하고 위에 lcTemplates랑 wsoTemplates에 있는 이름대로 맞춰주면 됌
+-- 3. 모르겠으면 뜨는별 멘션하기
 
 function spawnEnemyAircraft(zoneName)
     local groupName = ''
@@ -103,6 +103,7 @@ function startLC(gN, gID)
     local function checkAnswer(answer)
         if answerSheet[answer] == 2 then
             clearZone(lcZone)
+            spawnedUnit:destroy()
             trigger.action.outTextForGroup(gID, "< 듣기 평가 >\n\n정답입니다. 다시 도전하시려면 라디오 메뉴에서 '듣기 평가 시작' 을 눌러주세요.", 5)
             missionCommands.removeItemForGroup(gID, nil)
             mist.scheduleFunction(missionCommands.addCommandForGroup, {gID, '듣기 평가 시작', nil, startLC, gN, gID}, timer.getTime() + 5)

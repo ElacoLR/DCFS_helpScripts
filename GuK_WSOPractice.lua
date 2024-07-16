@@ -1,4 +1,4 @@
-local lcPlayerGroupName = {'player1'} -- 듣기평가 구역 플레이어 기체의 '그룹' 이름, 원할 시 더 추가해도 ㄱㅊ, 이름 마음대로 수정 ㅇㅋ
+local lcPlayerGroupName = {'player1', 'player2', 'player3'} -- 듣기평가 구역 플레이어 기체의 '그룹' 이름, 원할 시 더 추가해도 ㄱㅊ, 이름 마음대로 수정 ㅇㅋ
 local wsoPlayerGroupName = {'player4', 'player5', 'player6'} -- 레이더 연습 구역 플레이어 기체의 '그룹' 이름, 원할 시 더 추가해도 ㄱㅊ, 이름 마음대로 수정 ㅇㅋ
 
 local lcZone = '듣기평가 트리거 구역 이름'
@@ -6,8 +6,10 @@ local lcTemplates = {'Su-27', 'F-16', 'F-1', 'F-4', 'F-5', 'Mig-21', 'Mig-23', '
 --                                                                                                          미션 에디터에 생성 후 "Late Activation" 체크할 것
 
 local wsoZone = '레이더 연습 구역 이름'
-local wsoTemplates = {'L-39', 'Su-25', 'Su-27', 'C-130', 'F-15C', 'F-16'} -- 레이더 연습 구역에 나올 기체 '그룹' 이름, 이름 마음대로 수정 ㅇㅋ
+local wsoTemplates = {'L-39', 'Su-25', 'Su-27w', 'C-130', 'F-15C', 'F-16w'} -- 레이더 연습 구역에 나올 기체 '그룹' 이름, 이름 마음대로 수정 ㅇㅋ
 --                                                                           미션 에디터에 생성 후 "Late Activation" 체크할 것
+
+local weaponTarget = {} -- 건들면 좆됌..
 
 -- 유닛 생성 시 행동 양식
 -- 1. 맵 어디다 놓든 상관이 없음.
@@ -51,13 +53,6 @@ function clearZone(zoneName)
         u[i]:destroy()
     end
 end
-
---[[
-for _, gN in pairs(wsoPlayerGroupName) do
-    local gID = Group.getByName(gN):getID()
-    missionCommands.addCommandForGroup(gID, '레이더 연습 시작', nil, startWSO, gID)
-end
-]]
 
 function startLC(gN, gID)
     missionCommands.removeItemForGroup(gID, nil)
@@ -121,10 +116,83 @@ function startLC(gN, gID)
     end
 end
 
+function startWSO(gN, gID)
+    missionCommands.removeItemForGroup(gID, nil)
+
+    trigger.action.outTextForGroup(gID, "< 레이더 평가 >\n\nSTT를 걸고, 미사일을 발사한 후, 정답을 제출해주세요.", 5)
+
+    local gO = spawnEnemyAircraft(wsoZone)
+
+    local eGN = gO["name"]
+
+    local spawnedUnit = Group.getByName(eGN):getUnits()[1]
+
+    local answerSheet = {}
+
+    answerSheet[spawnedUnit:getTypeName()] = 2
+
+    while tableSize(answerSheet) ~= 5 do
+        local uT = wsoTemplates[math.random(1, #wsoTemplates)]
+
+        local uO = Group.getByName(uT):getUnits()[1]
+
+        if answerSheet[uO:getTypeName()] ~= 1 and answerSheet[uO:getTypeName()] ~= 2 then
+            answerSheet[uO:getTypeName()] = 1
+        end
+    end
+
+    local keys = {}
+
+    for k in pairs(answerSheet) do
+        table.insert(keys, k)
+    end
+
+    shuffleTable(keys)
+
+    local function checkAnswer(answer)
+        local pU = Group.getByName(gN):getUnits()[1]
+
+        if weaponTarget[pU:getName()] ~= nil then
+            if answerSheet[answer] == 2 and weaponTarget[pU:getName()]:getTarget():getTypeName() == answer then
+                clearZone(wsoZone)
+                trigger.action.outTextForGroup(gID, "< 레이더 평가 >\n\n정답입니다. 다시 도전하시려면 라디오 메뉴에서 '레이더 평가 시작' 을 눌러주세요.", 5)
+                missionCommands.removeItemForGroup(gID, nil)
+                weaponTarget[pU:getName()] = nil
+                mist.scheduleFunction(missionCommands.addCommandForGroup, {gID, '레이더 평가 시작', nil, startLC, gN, gID}, timer.getTime() + 5)
+            else
+                trigger.action.outTextForGroup(gID, "< 레이더 평가 >\n\n오답입니다.", 5)
+            end
+        else
+            trigger.action.outTextForGroup(gID, "< 레이더 평가 >\n\n발사된 미사일을 찾지 못했습니다. 다시 시도해주세요.", 5)
+        end
+    end
+
+    for _, k in ipairs(keys) do
+        missionCommands.addCommandForGroup(gID, k, nil, checkAnswer, k)
+    end
+end
+
+local eH_missileLaunch = {}
+
+function eH_missileLaunch:onEvent(e)
+    if e.id == world.event.S_EVENT_SHOT then
+        weaponTarget[e.initiator:getName()] = e.weapon
+    end
+end
+
+world.addEventHandler(eH_missileLaunch)
+
 for _, gN in pairs(lcPlayerGroupName) do
     if Group.getByName(gN) then
         local gID = Group.getByName(gN):getID()
         missionCommands.addCommandForGroup(gID, '듣기 평가 시작', nil, startLC, gN, gID)
+    end
+end
+
+for _, gN in pairs(wsoPlayerGroupName) do
+    if Group.getByName(gN) then
+        local gID = Group.getByName(gN):getID()
+        missionCommands.addCommandForGroup(gID, '레이더 연습 시작', nil, startWSO, gN, gID)
     end
 end
 

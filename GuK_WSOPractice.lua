@@ -119,7 +119,7 @@ end
 function startWSO(gN, gID)
     missionCommands.removeItemForGroup(gID, nil)
 
-    trigger.action.outTextForGroup(gID, "< 레이더 평가 >\n\nSTT를 걸고, 미사일을 발사한 후, 정답을 제출해주세요.", 5)
+    trigger.action.outTextForGroup(gID, "< 레이더 평가 >\n\nSTT를 걸고, 미사일을 발사한 후, 라디오 메뉴에서 확인 버튼을 눌러주세요.", 5)
 
     local gO = spawnEnemyAircraft(wsoZone)
 
@@ -127,49 +127,27 @@ function startWSO(gN, gID)
 
     local spawnedUnit = Group.getByName(eGN):getUnits()[1]
 
-    local answerSheet = {}
-
-    answerSheet[spawnedUnit:getTypeName()] = 2
-
-    while tableSize(answerSheet) ~= 5 do
-        local uT = wsoTemplates[math.random(1, #wsoTemplates)]
-
-        local uO = Group.getByName(uT):getUnits()[1]
-
-        if answerSheet[uO:getTypeName()] ~= 1 and answerSheet[uO:getTypeName()] ~= 2 then
-            answerSheet[uO:getTypeName()] = 1
-        end
-    end
-
-    local keys = {}
-
-    for k in pairs(answerSheet) do
-        table.insert(keys, k)
-    end
-
-    shuffleTable(keys)
-
-    local function checkAnswer(answer)
+    local function checkAnswer()
         local pU = Group.getByName(gN):getUnits()[1]
 
         if weaponTarget[pU:getName()] ~= nil then
-            if answerSheet[answer] == 2 and weaponTarget[pU:getName()]:getTarget():getTypeName() == answer then
+            if weaponTarget[pU:getName()]:getTarget() ~= nil then
                 clearZone(wsoZone)
-                trigger.action.outTextForGroup(gID, "< 레이더 평가 >\n\n정답입니다. 다시 도전하시려면 라디오 메뉴에서 '레이더 평가 시작' 을 눌러주세요.", 5)
+                spawnedUnit:destroy()
+                trigger.action.outTextForGroup(gID, "< 레이더 평가 >\n\n성공. 다시 도전하시려면 라디오 메뉴에서 '레이더 평가 시작' 을 눌러주세요.", 5)
                 missionCommands.removeItemForGroup(gID, nil)
                 weaponTarget[pU:getName()] = nil
-                mist.scheduleFunction(missionCommands.addCommandForGroup, {gID, '레이더 평가 시작', nil, startLC, gN, gID}, timer.getTime() + 5)
+                mist.scheduleFunction(missionCommands.addCommandForGroup, {gID, '레이더 평가 시작', nil, startWSO, gN, gID}, timer.getTime() + 5)
             else
-                trigger.action.outTextForGroup(gID, "< 레이더 평가 >\n\n오답입니다.", 5)
+                trigger.action.outTextForGroup(gID, "< 레이더 평가 >\n\n미사일이 아무것도 물지 않았습니다. 다시 시도해주세요.", 5)
+                weaponTarget[pU:getName()] = nil
             end
         else
             trigger.action.outTextForGroup(gID, "< 레이더 평가 >\n\n발사된 미사일을 찾지 못했습니다. 다시 시도해주세요.", 5)
         end
     end
 
-    for _, k in ipairs(keys) do
-        missionCommands.addCommandForGroup(gID, k, nil, checkAnswer, k)
-    end
+    missionCommands.addCommandForGroup(gID, "확인", nil, checkAnswer)
 end
 
 local eH_missileLaunch = {}

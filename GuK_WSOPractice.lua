@@ -9,12 +9,18 @@ local wsoZone = '레이더 연습 구역 이름' -- 원하는 구역에 트리�
 local wsoTemplates = {'L-39', 'Su-25', 'Su-27w', 'C-130', 'F-15C', 'F-16w'} -- 레이더 연습 구역에 나올 기체 '그룹' 이름, 이름 마음대로 수정 ㅇㅋ
 --                                                                           미션 에디터에 생성 후 "Late Activation" 체크할 것
 
-local weaponTarget = {} -- 건들면 좆됌..
+local wsoTimeout = 30 -- 레이더 연습 시간 제한 (초 단위)
 
 -- 적 유닛 템플릿 생성 시 행동 양식
 -- 1. 맵 어디다 놓든 상관이 없음.
 -- 2. 그룹 이름이랑 유닛 이름 똑같이 하고 위에 lcTemplates랑 wsoTemplates에 있는 이름대로 맞춰주면 됌
 -- 3. 모르겠으면 뜨는별 멘션하기
+
+-- 이 아래로 건들면 좆됌 --
+
+local wsoPlayerStatus = {}
+
+local weaponTarget = {}
 
 function spawnEnemyAircraft(zoneName)
     local groupName = ''
@@ -128,11 +134,13 @@ function startWSO(gN, gID)
 
     local spawnedUnit = Group.getByName(eGN):getUnits()[1]
 
-    local function checkAnswer()
-        local pU = Group.getByName(gN):getUnits()[1]
+    local pU = Group.getByName(gN):getUnits()[1]
 
+    local function checkAnswer()
         if weaponTarget[pU:getName()] ~= nil then
             if weaponTarget[pU:getName()]:getTarget() ~= nil then
+                mist.removeFunction(wsoPlayerStatus[gN])
+                wsoPlayerStatus[gN] = nil
                 clearZone(wsoZone)
                 spawnedUnit:destroy()
                 trigger.action.outTextForGroup(gID, "< 레이더 평가 >\n\n성공. 다시 도전하시려면 라디오 메뉴에서 '레이더 평가 시작' 을 눌러주세요.", 5)
@@ -149,6 +157,17 @@ function startWSO(gN, gID)
     end
 
     missionCommands.addCommandForGroup(gID, "확인", nil, checkAnswer)
+
+    wsoPlayerStatus[gN] = mist.scheduleFunction(resetWSO, {gN, gID, pU, spawnedUnit}, timer.getTime() + wsoTimeout)
+end
+
+function resetWSO(gN, gID, pU, sU)
+    trigger.action.outTextForGroup(gID, "< 레이더 평가 >\n\n시간 초과. 다시 도전하시려면 라디오 메뉴에서 '레이더 평가 시작' 을 눌러주세요.", 5)
+    clearZone(wsoZone)
+    sU:destroy()
+    missionCommands.removeItemForGroup(gID, nil)
+    weaponTarget[pU:getName()] = nil
+    mist.scheduleFunction(missionCommands.addCommandForGroup, {gID, '레이더 평가 시작', nil, startWSO, gN, gID}, timer.getTime() + 5)
 end
 
 local eH_missileLaunch = {}
